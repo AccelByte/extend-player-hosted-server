@@ -27,7 +27,7 @@ Host player → [HTTP :8081 register/heartbeat] → This App
 ```
 
 - `CreateGameSessionAsync` marks the session as awaiting host registration (sync `CreateGameSession` is rejected).
-- `POST /playerhosted/v1/namespaces/{namespace}/sessions/{sessionId}/register` authorizes the caller (session leader/member), probes `ip:port`, then reports `AVAILABLE`.
+- `POST /playerhosted/v1/namespaces/{namespace}/sessions/{sessionId}/register` authorizes the caller (active `JOINED`/`CONNECTED` session member), probes `ip:port`, then reports `AVAILABLE`.
 - `POST /playerhosted/v1/namespaces/{namespace}/sessions/{sessionId}/heartbeat` keeps the host alive; a lapse reports `DS_ERROR`.
 - A sweep (`Registry.StartHeartbeatMonitor`) enforces the lifecycle policies: hostless timeout and empty-session timeout both delete the AGS session.
 - The registry is in memory (single replica).

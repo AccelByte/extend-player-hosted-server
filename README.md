@@ -238,7 +238,7 @@ sequenceDiagram
    AGS->>APP: CreateGameSessionAsync
    APP-->>AGS: success (awaiting host registration)
    H->>APP: POST .../register {ip, port, serverId}
-   APP->>AGS: authorize caller is leader/member
+   APP->>AGS: authorize caller is an active member
    APP->>H: TCP reachability probe ip:port
    APP->>AGS: dsinformation status=AVAILABLE, source=custom
    J->>AGS: Join session, read DS ip:port
@@ -259,7 +259,8 @@ sequenceDiagram
    { "ip": "1.2.3.4", "port": 7777, "serverId": "host-1" }
    ```
 
-   The app **authorizes** the caller (it must be the session leader or a member),
+   The app **authorizes** the caller (it must be an active `JOINED`/`CONNECTED`
+   member of the session; players who left are rejected),
    **reachability-probes** `ip:port` over TCP, then reports the address to AGS through
    the admin `dsinformation` callback with `status=AVAILABLE`, `source=custom`. This
    flips the session to `AVAILABLE`.
@@ -269,7 +270,7 @@ sequenceDiagram
    | `200 {"status":"registered"}` | Address published to the session. |
    | `400` | Missing or invalid body (`ip` and `port` are required). |
    | `401` | Missing or invalid token. |
-   | `403` | Caller is not the leader or a member of the session. |
+   | `403` | Caller is not an active member of the session (including players who left). |
    | `404` | Session not found. |
    | `409` | Session is not awaiting a host (never requested, registration timed out, or being ended). |
    | `422` | `ip:port` is not reachable from the app. |
@@ -356,7 +357,8 @@ Player-hosted servers are untrusted.
 
 - Registration and heartbeats require a valid player access token for the namespace
   (validated when `PLUGIN_GRPC_SERVER_AUTH_ENABLED=true`).
-- Registration is authorized against session membership (leader or member).
+- Registration and heartbeats are authorized against active session membership
+  (`JOINED`/`CONNECTED`); players who left the session are rejected.
 - The reported address is reachability-checked before it is published.
 - No privileged tokens are handed to the host. Only the app talks to the admin
   Session APIs.

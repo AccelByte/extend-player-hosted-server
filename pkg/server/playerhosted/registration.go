@@ -146,9 +146,10 @@ func (h *RegistrationHandler) register(scope *envelope.Scope, namespace, session
 	return http.StatusOK, nil
 }
 
-// authorizeMembership confirms callerID is the leader or a member of the target
-// session. Never let an arbitrary caller bind an address to someone else's
-// session (proposal §5.3).
+// authorizeMembership confirms callerID is an active (JOINED/CONNECTED) member
+// of the target session. Never let an arbitrary caller bind an address to
+// someone else's session (proposal §5.3), and stop players who have left from
+// registering or heartbeating.
 func (h *RegistrationHandler) authorizeMembership(scope *envelope.Scope, namespace, sessionID, callerID string) (int, error) {
 	resp, err := h.sessions.GetGameSessionShort(&game_session.GetGameSessionParams{
 		Namespace: namespace,
@@ -193,16 +194,15 @@ func (h *RegistrationHandler) authorizeToken(r *http.Request, namespace string) 
 	return callerID, nil
 }
 
+// isSessionMember reports whether callerID is an active member of the session.
+// The leader is listed in Members too, so a leader who has left is rejected.
 func isSessionMember(resp *sessionclientmodels.ApimodelsGameSessionResponse, callerID string) bool {
 	if resp == nil || callerID == "" {
 		return false
 	}
-	if resp.LeaderID != nil && *resp.LeaderID == callerID {
-		return true
-	}
 	for _, m := range resp.Members {
 		if m != nil && m.ID != nil && *m.ID == callerID {
-			return true
+			return playerhosted.IsActiveMember(m)
 		}
 	}
 

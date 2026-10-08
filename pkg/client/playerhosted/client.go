@@ -216,10 +216,15 @@ func (r *Registry) StartHeartbeatMonitor(ctx context.Context) {
 	}
 }
 
-// sessionRef identifies a session picked up by a sweep.
+// sessionRef identifies a session picked up by a sweep. The host address is
+// only set for stale hosts: Session Service requires port and serverId on every
+// dsinformation update, including DS_ERROR, so the last known values are sent.
 type sessionRef struct {
 	sessionID string
 	namespace string
+	ip        string
+	port      int32
+	serverID  string
 }
 
 // sweep runs one pass of the lifecycle policies. AGS calls are made without
@@ -239,7 +244,9 @@ func (r *Registry) sweep() {
 			st.status = statusError
 			st.hostlessSince = now
 			st.emptySince = time.Time{}
-			staleHosts = append(staleHosts, ref)
+			staleHosts = append(staleHosts, sessionRef{
+				sessionID: sessionID, namespace: st.namespace, ip: st.ip, port: st.port, serverID: st.serverID,
+			})
 		}
 		switch {
 		case st.status != statusAvailable && r.cfg.PlayerHostedHostlessSessionTimeout > 0 &&
@@ -256,7 +263,7 @@ func (r *Registry) sweep() {
 		scope := envelope.NewRootScope(context.Background(), "playerhosted.HeartbeatMonitor", "")
 		scope.Log.Warn("player-hosted: host heartbeat lost, reporting DS_ERROR", "sessionID", s.sessionID)
 		if err := r.pushDSInfo(scope, s.namespace, s.sessionID, constants.DSStatusError,
-			constants.GameServerSourceCustom, "", 0, "", "player-hosted heartbeat lost"); err != nil {
+			constants.GameServerSourceCustom, s.ip, s.port, s.serverID, "player-hosted heartbeat lost"); err != nil {
 			scope.Log.Error("player-hosted: failed to report DS_ERROR", "error", err, "sessionID", s.sessionID)
 		}
 		scope.Finish()
@@ -438,12 +445,18 @@ func hasActiveMember(resp *sessionclientmodels.ApimodelsGameSessionResponse) boo
 		return false
 	}
 	for _, m := range resp.Members {
-		if m != nil && (isActiveMemberStatus(m.StatusV2) || isActiveMemberStatus(m.Status)) {
+		if IsActiveMember(m) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// IsActiveMember reports whether a session member is currently JOINED or
+// CONNECTED (as opposed to INVITED, LEFT, KICKED, DROPPED, ...).
+func IsActiveMember(m *sessionclientmodels.ApimodelsUserResponse) bool {
+	return m != nil && (isActiveMemberStatus(m.StatusV2) || isActiveMemberStatus(m.Status))
 }
 
 func isActiveMemberStatus(status *string) bool {

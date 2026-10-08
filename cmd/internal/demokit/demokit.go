@@ -113,6 +113,8 @@ type TemplateSpec struct {
 	Deployment    string
 	AppName       string
 	CustomURLGRPC string
+	// RequestedRegions is required by AGS for dsSource=custom (at least one).
+	RequestedRegions []string
 	// AsyncTimeout is the asyncProcessDSRequest timeout in seconds; AGS requires
 	// 0 < timeout <= 600 when async is enabled.
 	AsyncTimeout int
@@ -149,6 +151,7 @@ func EnsureTemplate(ctx context.Context, baseURL, namespace, token string, spec 
 		"clientVersion":         spec.ClientVersion,
 		"deployment":            spec.Deployment,
 		"dsSource":              "custom",
+		"requestedRegions":      spec.RequestedRegions,
 		"asyncProcessDSRequest": map[string]interface{}{"async": true, "timeout": spec.AsyncTimeout},
 	}
 	if spec.AppName != "" {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -66,13 +67,14 @@ func EnvDuration(key string, def time.Duration) time.Duration {
 // TemplateSpecFromEnv builds a TemplateSpec from the DEMO_* environment.
 func TemplateSpecFromEnv() TemplateSpec {
 	return TemplateSpec{
-		Name:          Env("DEMO_CONFIG_NAME", "player-hosted-demo"),
-		MaxPlayers:    EnvInt("DEMO_MAX_PLAYERS", 10),
-		ClientVersion: Env("DEMO_CLIENT_VERSION", "1.0.0"),
-		Deployment:    Env("DEMO_DEPLOYMENT", "player-hosted"),
-		AppName:       os.Getenv("DEMO_APP_NAME"),
-		CustomURLGRPC: os.Getenv("DEMO_CUSTOM_URL_GRPC"),
-		AsyncTimeout:  EnvInt("DEMO_ASYNC_TIMEOUT", 120),
-		Persistent:    EnvBool("DEMO_PERSISTENT", true),
+		Name:             Env("DEMO_CONFIG_NAME", "player-hosted-demo"),
+		MaxPlayers:       EnvInt("DEMO_MAX_PLAYERS", 10),
+		ClientVersion:    Env("DEMO_CLIENT_VERSION", "1.0.0"),
+		Deployment:       Env("DEMO_DEPLOYMENT", "player-hosted"),
+		AppName:          os.Getenv("DEMO_APP_NAME"),
+		CustomURLGRPC:    os.Getenv("DEMO_CUSTOM_URL_GRPC"),
+		RequestedRegions: strings.Split(Env("DEMO_REQUESTED_REGIONS", "us-west-2"), ","),
+		AsyncTimeout:     EnvInt("DEMO_ASYNC_TIMEOUT", 120),
+		Persistent:       EnvBool("DEMO_PERSISTENT", true),
 	}
 }

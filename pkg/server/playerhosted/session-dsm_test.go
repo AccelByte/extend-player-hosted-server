@@ -94,7 +94,16 @@ func testConfig() *config.Config {
 }
 
 func sessionWithLeader(leaderID string) *sessionclientmodels.ApimodelsGameSessionResponse {
-	return &sessionclientmodels.ApimodelsGameSessionResponse{LeaderID: &leaderID}
+	return sessionWithLeaderStatus(leaderID, "JOINED")
+}
+
+// sessionWithLeaderStatus builds a session whose leader is also listed as a
+// member with the given status (as Session Service does).
+func sessionWithLeaderStatus(leaderID, status string) *sessionclientmodels.ApimodelsGameSessionResponse {
+	return &sessionclientmodels.ApimodelsGameSessionResponse{
+		LeaderID: &leaderID,
+		Members:  []*sessionclientmodels.ApimodelsUserResponse{{ID: &leaderID, StatusV2: &status}},
+	}
 }
 
 func sessionWithMembers(statuses ...string) *sessionclientmodels.ApimodelsGameSessionResponse {
@@ -212,6 +221,35 @@ func TestRegister_Unauthorized(t *testing.T) {
 		ServerID: "host-1",
 	})
 
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusForbidden, code)
+	updater.AssertNotCalled(t, "AdminUpdateDSInformationShort", mock.Anything)
+}
+
+func TestRegister_LeftMemberRejected(t *testing.T) {
+	updater := new(MockSessionUpdater)
+	reader := new(MockSessionReader)
+	cfg := testConfig()
+	registry := playerhosted.New(cfg, updater)
+	handler := NewRegistrationHandler(registry, reader, cfg)
+
+	scope := envelope.NewRootScope(context.Background(), "test", "")
+	registry.AwaitRegistration(scope, "sess-1", "ns")
+	defer registry.Release(scope, "sess-1")
+
+	// The caller is still recorded as leader, but has left the session.
+	reader.On("GetGameSessionShort", mock.Anything).Return(sessionWithLeaderStatus("user-1", "LEFT"), nil)
+
+	code, err := handler.register(scope, "ns", "sess-1", "user-1", registerRequest{
+		IP:       "127.0.0.1",
+		Port:     7777,
+		ServerID: "host-1",
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusForbidden, code)
+
+	code, err = handler.authorizeMembership(scope, "ns", "sess-1", "user-1")
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusForbidden, code)
 	updater.AssertNotCalled(t, "AdminUpdateDSInformationShort", mock.Anything)

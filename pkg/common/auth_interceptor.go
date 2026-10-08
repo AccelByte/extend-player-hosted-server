@@ -83,7 +83,11 @@ func checkAuthorizationMetadata(ctx context.Context) error {
 	token := strings.TrimPrefix(authorization, "Bearer ")
 	namespace := os.Getenv("AB_NAMESPACE")
 
-	Validator.Initialize(ctx)
+	// The validator is initialized once in main. Do not re-initialize it here:
+	// Initialize stores ctx for later IAM calls, and the request ctx is
+	// cancelled when this call returns, which breaks every later validation
+	// (including the registration HTTP API), and it starts new refresh
+	// goroutines on every request.
 	err := Validator.Validate(token, nil, &namespace, nil)
 
 	if err != nil {
