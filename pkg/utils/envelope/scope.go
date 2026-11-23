@@ -10,8 +10,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/AccelByte/go-restful-plugins/v3/pkg/trace"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -21,6 +19,7 @@ import (
 )
 
 const (
+	traceIDKey              = "X-Ab-TraceID"
 	abTraceIdLogField       = "abTraceID"
 	serviceName             = "justice-session-service"
 	gitHashField            = "gitHash"
@@ -69,7 +68,7 @@ func NewRootScope(rootCtx context.Context, name string, abTraceID string) *Scope
 	}
 
 	if abTraceID != "" {
-		scope.TraceTag(trace.TraceIDKey, abTraceID)
+		scope.TraceTag(traceIDKey, abTraceID)
 	}
 
 	return scope
